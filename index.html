@@ -123,6 +123,9 @@ th{color:#697488}
       <input id="firstExpense" type="number" placeholder="187000">
       <label>2차 지출</label>
       <input id="secondExpense" type="number" placeholder="85000">
+      <label>당첨금 지출</label>
+      <input id="prizeExpense" type="number" value="100000" placeholder="100000">
+      <div class="small">당첨자를 선택하면 기본 100,000원이 자동 입력됩니다.</div>
       <label>기타 지출</label>
       <input id="otherExpense" type="number" placeholder="0">
       <label>이번 달 당첨자</label>
@@ -170,7 +173,7 @@ th{color:#697488}
   <footer>우리 모임 회비관리 · 회원 공동 열람용</footer>
 </div>
 
-<script>
+<script type="module">
 /*
 =========================================================
 Firebase 설정
@@ -196,6 +199,8 @@ const members = ["김동운","박영만","김병훈","김효석","한청희","�
 let openingBalance = 2030390;
 const DUES = 50000;
 const PRIZE = 100000;
+// 기존에 이미 당첨금을 받은 회원. 이번 회차가 끝날 때까지 다시 선택할 수 없습니다.
+const INITIAL_RECEIVED = ["조한구","김동운","한청희"];
 
 const fmt = n => Number(n||0).toLocaleString("ko-KR")+"원";
 const esc = s => String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -207,9 +212,10 @@ function showTab(id,btn){
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   btn.classList.add("active");
 }
+window.showTab = showTab;
 
 function calcMeeting(m){
-  const expense=Number(m.firstExpense||0)+Number(m.secondExpense||0)+Number(m.otherExpense||0)+Number(m.prize||0);
+  const expense=Number(m.firstExpense||0)+Number(m.secondExpense||0)+Number(m.otherExpense||0)+Number(m.prizeExpense ?? m.prize ?? 0);
   const income=Number(m.duesIncome||0)+Number(m.income||0);
   return {expense,profit:income-expense};
 }
@@ -319,7 +325,7 @@ function cardHTML(m){
     <div class="people"><b>회비 납부:</b> ${paid.length}/8명</div>
     <div class="people">${paid.map(x=>`${esc(x)}: ${payments[x]==="cash"?"현장":"입금"}`).join(" · ")||"-"}</div>
     ${m.winner?`<div class="people"><b>🏆 이번 달 당첨:</b> ${esc(m.winner)} (${fmt(PRIZE)})</div>`:""}
-    <div class="people"><b>지출:</b> 1차 ${fmt(m.firstExpense)} · 2차 ${fmt(m.secondExpense)}${Number(m.otherExpense)?` · 기타 ${fmt(m.otherExpense)}`:""}</div>
+    <div class="people"><b>지출:</b> 1차 ${fmt(m.firstExpense)} · 2차 ${fmt(m.secondExpense)} · 당첨금 ${fmt(m.prizeExpense ?? m.prize ?? 0)}${Number(m.otherExpense)?` · 기타 ${fmt(m.otherExpense)}`:""}</div>
     ${m.memo?`<div class="small" style="margin-top:7px">메모: ${esc(m.memo)}</div>`:""}
     <div class="actions"><button class="btn-danger" onclick="deleteMeeting('${esc(m.id)}')">이 모임 삭제</button></div>
   </div>`;
@@ -342,6 +348,7 @@ async function addMeeting(){
   const cycle=getCurrentCycle();
   const received=new Set(cycle.received);
   const winner=document.getElementById("winner").value;
+  const prizeExpense=winner ? Number(document.getElementById("prizeExpense").value||PRIZE) : 0;
 
   if(!document.getElementById("date").value){alert("모임 날짜를 입력해주세요.");return}
   if(winner && received.has(winner)){alert("이미 이번 회차에 당첨금을 받은 회원입니다. 아직 받지 않은 회원을 선택해주세요.");return}
@@ -357,7 +364,8 @@ async function addMeeting(){
     firstExpense:Number(document.getElementById("firstExpense").value||0),
     secondExpense:Number(document.getElementById("secondExpense").value||0),
     otherExpense:Number(document.getElementById("otherExpense").value||0),
-    prize:winner?PRIZE:0,
+    prizeExpense,
+    prize:winner?prizeExpense:0,
     winner,
     memo:document.getElementById("memo").value
   };
@@ -398,7 +406,7 @@ function buildPaymentInputs(){
   }
 }
 function clearForm(){
-  ["date","title","attendees","incomeInput","firstExpense","secondExpense","otherExpense","memo"].forEach(id=>document.getElementById(id).value="");
+  ["date","title","attendees","incomeInput","firstExpense","secondExpense","prizeExpense","otherExpense","memo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("attendees").value=members.join(", ");
   buildPaymentInputs();
 }
@@ -415,6 +423,7 @@ function fillExample(){
   document.getElementById("incomeInput").value=0;
   document.getElementById("firstExpense").value=187000;
   document.getElementById("secondExpense").value=85000;
+  document.getElementById("prizeExpense").value=100000;
   document.getElementById("otherExpense").value=0;
   document.getElementById("memo").value="7월 정기 모임";
   const w=document.getElementById("winner");
@@ -453,6 +462,13 @@ function importData(e){
   };
   reader.readAsText(file);
 }
+
+window.addMeeting = addMeeting;
+window.fillExample = fillExample;
+window.deleteMeeting = deleteMeeting;
+window.saveOpening = saveOpening;
+window.exportData = exportData;
+window.importData = importData;
 
 function loadLocal(){
   meetings=JSON.parse(localStorage.getItem("meetingAppMeetings")||"[]");
