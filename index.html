@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>우리 모임 회비관리</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6f8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic",sans-serif}
+header{background:linear-gradient(135deg,#102a56,#1d4e89);color:white;padding:24px 18px 20px}
+header h1{margin:0;font-size:25px}
+header p{margin:7px 0 0;opacity:.85;font-size:13px}
+.container{max-width:760px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 4px 16px rgba(20,40,70,.07)}
+.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{padding:15px;border-radius:13px;background:#f5f8fc}
+.stat .label{font-size:12px;color:#657084}
+.stat .num{font-size:22px;font-weight:800;margin-top:4px}
+.blue{color:#1769aa}.green{color:#16834b}.red{color:#d44747}.purple{color:#7650b7}
+.tabs{display:flex;gap:7px;overflow:auto;margin-bottom:14px}
+.tab{border:0;background:#e6ebf2;border-radius:10px;padding:10px 14px;font-weight:700;white-space:nowrap;color:#445}
+.tab.active{background:#1d4e89;color:#fff}
+h2{font-size:18px;margin:4px 0 14px}
+h3{font-size:15px;margin:17px 0 8px}
+label{font-size:12px;color:#596579;font-weight:700;display:block;margin:10px 0 5px}
+input,textarea,select{width:100%;padding:11px;border:1px solid #d8dee8;border-radius:9px;font-size:14px;background:#fff}
+textarea{min-height:75px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:800;cursor:pointer}
+.btn{background:#1d4e89;color:white}
+.btn2{background:#e9eef5;color:#25354e}
+.btn-danger{background:#fff0f0;color:#c33}
+.row{display:flex;gap:8px;align-items:center}.row>div{flex:1}
+.row>*{flex:1}
+.actions{display:flex;gap:8px;margin-top:12px}
+.actions button{flex:1}
+.hidden{display:none!important}
+.meeting{border:1px solid #e1e6ee;border-radius:13px;padding:14px;margin-bottom:10px}
+.meeting-title{font-size:17px;font-weight:800}
+.badge{display:inline-block;background:#eef4ff;color:#1d4e89;padding:4px 8px;border-radius:20px;font-size:11px;margin:3px 3px 0 0}
+.people{line-height:1.8;font-size:13px;color:#4c5667}
+.money{font-weight:800}
+.ledger{display:flex;justify-content:space-between;border-bottom:1px solid #edf0f4;padding:10px 0;font-size:13px}
+.notice{background:#fff8df;border:1px solid #f2df9a;padding:12px;border-radius:11px;font-size:12px;line-height:1.6}
+.ok{background:#ecfaf2;color:#147642;padding:10px;border-radius:9px;font-size:12px}
+.empty{text-align:center;color:#8a94a4;padding:25px 10px}
+footer{text-align:center;color:#8993a3;font-size:11px;padding:20px}
+.small{font-size:11px;color:#788294}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 5px;border-bottom:1px solid #edf0f4;text-align:left;vertical-align:top}
+th{color:#697488}
+@media(min-width:600px){.summary{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>우리 모임 회비관리</h1>
+  <p>회비 · 참석자 · 입금 · 지출 · 당첨금 · 잔고를 한곳에서 관리합니다.</p>
+</header>
+
+<div class="container">
+  <div id="connection" class="notice" style="margin-bottom:14px">
+    처음 사용하실 때 Firebase 설정이 필요합니다. 설정 전에는 이 기기에서만 저장되는 테스트 모드로 작동합니다.
+  </div>
+
+  <div class="card">
+    <h2>8인 순환 당첨 현황</h2>
+    <div class="small">1인 월 회비 50,000원 · 매월 1명 100,000원 · 8명 모두 당첨 후 다시 시작</div>
+    <div id="cycleStatus" style="margin-top:10px"></div>
+  </div>
+
+  <div class="summary">
+    <div class="stat"><div class="label">현재 잔고</div><div class="num blue" id="balance">0원</div></div>
+    <div class="stat"><div class="label">총 수입</div><div class="num green" id="income">0원</div></div>
+    <div class="stat"><div class="label">총 지출</div><div class="num red" id="expense">0원</div></div>
+    <div class="stat"><div class="label">등록 모임</div><div class="num purple" id="meetingCount">0회</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('home',this)">홈</button>
+    <button class="tab" onclick="showTab('meetings',this)">모임장부</button>
+    <button class="tab" onclick="showTab('add',this)">모임등록</button>
+    <button class="tab" onclick="showTab('members',this)">회원</button>
+    <button class="tab" onclick="showTab('settings',this)">설정</button>
+  </div>
+
+  <section id="home" class="tabpage">
+    <div class="card">
+      <h2>최근 모임</h2>
+      <div id="recent"></div>
+    </div>
+    <div class="card">
+      <h2>당첨 순서</h2>
+      <div id="winnerHistory"></div>
+    </div>
+    <div class="card">
+      <h2>회비 현황</h2>
+      <div id="recentLedger"></div>
+    </div>
+  </section>
+
+  <section id="meetings" class="tabpage hidden">
+    <div class="card">
+      <h2>모임 장부</h2>
+      <div id="meetingList"></div>
+    </div>
+  </section>
+
+  <section id="add" class="tabpage hidden">
+    <div class="card">
+      <h2>새 모임 등록</h2>
+      <label>모임 날짜</label>
+      <input id="date" type="date">
+      <label>모임 이름</label>
+      <input id="title" placeholder="예: 7월 모임">
+      <label>참석자</label>
+      <textarea id="attendees" placeholder="박영만, 이재춘, 김병훈, 김효석"></textarea>
+      <label>회비 납부 현황</label>
+      <div class="small" style="margin-bottom:7px">1인당 50,000원. 회원별로 입금 또는 현장 납부를 선택하세요.</div>
+      <div id="paymentInputs"></div>
+      <label>기타 수입</label>
+      <input id="incomeInput" type="number" placeholder="0">
+      <label>1차 지출</label>
+      <input id="firstExpense" type="number" placeholder="187000">
+      <label>2차 지출</label>
+      <input id="secondExpense" type="number" placeholder="85000">
+      <label>기타 지출</label>
+      <input id="otherExpense" type="number" placeholder="0">
+      <label>이번 달 당첨자</label>
+      <select id="winner"></select>
+      <div class="small" style="margin-top:5px">당첨금 100,000원은 자동 처리됩니다. 이번 순환에서 이미 당첨된 회원은 다시 선택할 수 없습니다.</div>
+      <label>메모</label>
+      <textarea id="memo" placeholder="모임 관련 메모"></textarea>
+      <div class="actions">
+        <button class="btn" onclick="addMeeting()">모임 저장</button>
+        <button class="btn2" onclick="fillExample()">7월 예시 불러오기</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="members" class="tabpage hidden">
+    <div class="card">
+      <h2>회원 8명</h2>
+      <div class="notice">정원 8명 · 1인당 월 회비 50,000원 · 납부 방법은 입금/현장 납부</div>
+      <div id="memberList" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section id="settings" class="tabpage hidden">
+    <div class="card">
+      <h2>공유 설정</h2>
+      <div class="notice">
+        <b>중요:</b> Firebase를 연결하면 이 장부가 여러 휴대폰에서 같은 데이터로 보입니다.
+        아래 Firebase 설정값을 index.html 안에 한 번만 넣으면 됩니다.
+      </div>
+      <h3>현재 연결 상태</h3>
+      <div id="status" class="ok">테스트 모드</div>
+      <h3>데이터 백업</h3>
+      <div class="actions">
+        <button class="btn2" onclick="exportData()">백업파일 저장</button>
+        <button class="btn2" onclick="document.getElementById('importFile').click()">백업파일 불러오기</button>
+        <input id="importFile" type="file" accept=".json" class="hidden" onchange="importData(event)">
+      </div>
+      <h3>잔고 시작 금액</h3>
+      <input id="openingBalance" type="number" value="2030390">
+      <button class="btn" style="width:100%;margin-top:10px" onclick="saveOpening()">시작 잔고 저장</button>
+      <p class="small">예: 기존 잔고가 2,030,390원이라면 시작 잔고는 그 금액에 맞게 조정하세요. 모임 수익은 이후 잔고에 더해집니다.</p>
+    </div>
+  </section>
+
+  <footer>우리 모임 회비관리 · 회원 공동 열람용</footer>
+</div>
+
+<script type="module">
+/*
+=========================================================
+Firebase 설정
+1. Firebase Console에서 프로젝트 생성
+2. 웹 앱 추가
+3. 아래 firebaseConfig 값을 본인의 값으로 교체
+=========================================================
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyD45OFmXyxxcaxOmSeQjfQKNGIbsbhfO0Y",
+  authDomain: "mokdong-7d788.firebaseapp.com",
+  databaseURL: "https://mokdong-7d788-default-rtdb.firebaseio.com",
+  projectId: "mokdong-7d788",
+  storageBucket: "mokdong-7d788.firebasestorage.app",
+  messagingSenderId: "900287788424",
+  appId: "1:900287788424:web:1de92b093a6f08e132763d"
+};
+
+let useFirebase = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.databaseURL && !firebaseConfig.apiKey.includes("여기에_"));
+let db = null, ref, set, onValue, push, remove, auth, signInAnonymously;
+let meetings = [];
+const members = ["김동운","박영만","김병훈","김효석","한청희","조한구","홍인기","이재춘"];
+let openingBalance = 2030390;
+const DUES = 50000;
+const PRIZE = 100000;
+
+const fmt = n => Number(n||0).toLocaleString("ko-KR")+"원";
+const esc = s => String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const splitNames = s => String(s||"").split(/[,，\n]/).map(x=>x.trim()).filter(Boolean);
+
+function showTab(id,btn){
+  document.querySelectorAll(".tabpage").forEach(x=>x.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+function calcMeeting(m){
+  const expense=Number(m.firstExpense||0)+Number(m.secondExpense||0)+Number(m.otherExpense||0)+Number(m.prize||0);
+  const income=Number(m.duesIncome||0)+Number(m.income||0);
+  return {expense,profit:income-expense};
+}
+
+function getCurrentCycle(){
+  const sorted=[...meetings].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  let received=[];
+  let round=1;
+  for(const m of sorted){
+    if(!m.winner) continue;
+    if(received.includes(m.winner)) continue;
+    received.push(m.winner);
+    if(received.length===members.length){
+      received=[];
+      round++;
+    }
+  }
+  return {received, round};
+}
+
+function getWinnerHistory(){
+  const sorted=[...meetings].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const out=[];
+  let cycle=[];
+  for(const m of sorted){
+    if(!m.winner) continue;
+    if(cycle.includes(m.winner)) continue;
+    out.push({winner:m.winner,date:m.date});
+    cycle.push(m.winner);
+    if(cycle.length===members.length) cycle=[];
+  }
+  return out.slice(-members.length);
+}
+
+function render(){
+  const totalIncome=meetings.reduce((a,m)=>a+Number(m.duesIncome||0)+Number(m.income||0),0);
+  const totalExpense=meetings.reduce((a,m)=>a+calcMeeting(m).expense,0);
+  const balance=openingBalance+totalIncome-totalExpense;
+  document.getElementById("balance").textContent=fmt(balance);
+  document.getElementById("income").textContent=fmt(totalIncome);
+  document.getElementById("expense").textContent=fmt(totalExpense);
+  document.getElementById("meetingCount").textContent=meetings.length+"회";
+
+  const sorted=[...meetings].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  document.getElementById("recent").innerHTML=sorted.length?sorted.slice(0,3).map(cardHTML).join(""):'<div class="empty">등록된 모임이 없습니다.</div>';
+  document.getElementById("meetingList").innerHTML=sorted.length?sorted.map(cardHTML).join(""):'<div class="empty">등록된 모임이 없습니다.</div>';
+
+  let ledger=[];
+  sorted.forEach(m=>{
+    const c=calcMeeting(m);
+    if(m.duesIncome) ledger.push({date:m.date,type:"회비",name:m.title,amount:m.duesIncome,cls:"green"});
+    if(m.income) ledger.push({date:m.date,type:"기타 수입",name:m.title,amount:m.income,cls:"green"});
+    if(c.expense) ledger.push({date:m.date,type:"지출",name:m.title,amount:-c.expense,cls:"red"});
+  });
+  document.getElementById("recentLedger").innerHTML=ledger.slice(0,10).map(x=>
+    `<div class="ledger"><span>${esc(x.date)} · ${esc(x.name)}<br><span class="small">${x.type}</span></span><span class="money ${x.cls}">${x.amount>0?"+":""}${fmt(x.amount)}</span></div>`
+  ).join("") || '<div class="empty">거래 내역이 없습니다.</div>';
+
+  const cycle=getCurrentCycle();
+  const received=new Set(cycle.received);
+  const notReceived=members.filter(m=>!received.has(m));
+  const next=notReceived[0]||"새 순환 시작";
+  document.getElementById("cycleStatus").innerHTML=
+    `<b>현재 ${cycle.round}회차</b> · 받은 사람 <b>${cycle.received.length}명</b> / 8명<br>
+     <span class="green">✓ 받은 사람: ${cycle.received.length?cycle.received.map(esc).join(" · "):"없음"}</span><br>
+     <span class="blue">○ 아직 못 받은 사람: ${notReceived.length?notReceived.map(esc).join(" · "):"8명 모두 완료"}</span><br>
+     <b>다음 당첨 후보:</b> <span class="blue" style="font-size:17px">${esc(next)}</span>`;
+
+  document.getElementById("winnerHistory").innerHTML=
+    `<div class="small" style="margin-bottom:8px">현재 회차의 당첨 여부를 구분합니다.</div>
+     <div class="row" style="align-items:stretch">
+       <div style="background:#ecfaf2;padding:12px;border-radius:10px">
+         <b class="green">✓ 받은 사람 (${cycle.received.length}명)</b><br>
+         <span class="small">${cycle.received.length?cycle.received.map(esc).join(" · "):"아직 없음"}</span>
+       </div>
+       <div style="background:#eef4ff;padding:12px;border-radius:10px">
+         <b class="blue">○ 안 받은 사람 (${notReceived.length}명)</b><br>
+         <span class="small">${notReceived.length?notReceived.map(esc).join(" · "):"없음"}</span>
+       </div>
+     </div>`;
+
+  document.getElementById("memberList").innerHTML=members.map((m,i)=>{
+    const paid=sorted.length?(sorted[0].payments||{})[m]:"";
+    const paidText=paid==="cash"?"현장 납부":paid==="transfer"?"입금":"미등록";
+    const won=received.has(m);
+    return `<div class="ledger">
+      <span><b>${i+1}. ${esc(m)}</b><br><span class="small">최근 납부: ${paidText}</span></span>
+      <span class="badge" style="${won?'background:#ecfaf2;color:#147642':'background:#eef4ff;color:#1769aa'}">${won?"✓ 이번 회차 수령":"○ 아직 미수령"}</span>
+    </div>`;
+  }).join("");
+}
+
+function cardHTML(m){
+  const c=calcMeeting(m);
+  const people=splitNames(m.attendees);
+  const payments=m.payments||{};
+  const paid=members.filter(x=>payments[x]);
+  return `<div class="meeting">
+    <div class="meeting-title">${esc(m.title||"모임")} <span class="small">${esc(m.date||"")}</span></div>
+    <div style="margin:8px 0">
+      <span class="badge">참석 ${people.length}명</span>
+      <span class="badge">회비 ${fmt(m.duesIncome)}</span>
+      <span class="badge">지출 ${fmt(c.expense)}</span>
+      <span class="badge">수익 ${fmt(c.profit)}</span>
+    </div>
+    <div class="people"><b>참석:</b> ${esc(people.join(" · ")||"-")}</div>
+    <div class="people"><b>회비 납부:</b> ${paid.length}/8명</div>
+    <div class="people">${paid.map(x=>`${esc(x)}: ${payments[x]==="cash"?"현장":"입금"}`).join(" · ")||"-"}</div>
+    ${m.winner?`<div class="people"><b>🏆 이번 달 당첨:</b> ${esc(m.winner)} (${fmt(PRIZE)})</div>`:""}
+    <div class="people"><b>지출:</b> 1차 ${fmt(m.firstExpense)} · 2차 ${fmt(m.secondExpense)}${Number(m.otherExpense)?` · 기타 ${fmt(m.otherExpense)}`:""}</div>
+    ${m.memo?`<div class="small" style="margin-top:7px">메모: ${esc(m.memo)}</div>`:""}
+    <div class="actions"><button class="btn-danger" onclick="deleteMeeting('${esc(m.id)}')">이 모임 삭제</button></div>
+  </div>`;
+}
+
+function localSave(){
+  localStorage.setItem("meetingAppMeetings",JSON.stringify(meetings));
+    localStorage.setItem("meetingAppOpening",openingBalance);
+  render();
+}
+
+async function addMeeting(){
+  const payments={};
+  members.forEach((name,i)=>{
+    const el=document.getElementById("pay_"+i);
+    if(el && el.value) payments[name]=el.value;
+  });
+  const paidCount=Object.keys(payments).length;
+  const duesIncome=paidCount*DUES;
+  const cycle=getCurrentCycle();
+  const received=new Set(cycle.received);
+  const winner=document.getElementById("winner").value;
+
+  if(!document.getElementById("date").value){alert("모임 날짜를 입력해주세요.");return}
+  if(winner && received.has(winner)){alert("이미 이번 회차에 당첨금을 받은 회원입니다. 아직 받지 않은 회원을 선택해주세요.");return}
+  if(paidCount===0){alert("최소 1명의 납부 방법을 선택해주세요.");return}
+
+  const m={
+    date:document.getElementById("date").value,
+    title:document.getElementById("title").value.trim()||"정기 모임",
+    attendees:document.getElementById("attendees").value,
+    payments,
+    duesIncome,
+    income:Number(document.getElementById("incomeInput").value||0),
+    firstExpense:Number(document.getElementById("firstExpense").value||0),
+    secondExpense:Number(document.getElementById("secondExpense").value||0),
+    otherExpense:Number(document.getElementById("otherExpense").value||0),
+    prize:winner?PRIZE:0,
+    winner,
+    memo:document.getElementById("memo").value
+  };
+
+  if(useFirebase){
+    const newRef=push(ref(db,"meetings")); m.id=newRef.key; await set(newRef,m);
+  }else{
+    m.id=Date.now().toString(); meetings.push(m); localSave();
+  }
+  alert(`저장 완료\n회비 수입 ${fmt(duesIncome)}${winner?`\n당첨자 ${winner} · ${fmt(PRIZE)}`:""}`);
+  clearForm();
+  showTab("meetings",document.querySelectorAll(".tab")[1]);
+}
+
+async function deleteMeeting(id){
+  if(!confirm("이 모임 장부를 삭제할까요?"))return;
+  if(useFirebase) await remove(ref(db,"meetings/"+id));
+  else{meetings=meetings.filter(m=>m.id!==id);localSave();}
+}
+
+function buildPaymentInputs(){
+  const wrap=document.getElementById("paymentInputs");
+  if(!wrap)return;
+  wrap.innerHTML=members.map((name,i)=>`
+    <div class="row" style="margin-bottom:6px">
+      <div style="flex:1.3;font-size:13px">${esc(name)}</div>
+      <select id="pay_${i}" style="flex:1">
+        <option value="">미납</option>
+        <option value="transfer">입금</option>
+        <option value="cash">현장 납부</option>
+      </select>
+    </div>`).join("");
+  const w=document.getElementById("winner");
+  if(w){
+    const received=new Set(getCurrentCycle().received);
+    const available=members.filter(m=>!received.has(m));
+    w.innerHTML='<option value="">당첨자 선택</option>'+available.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  }
+}
+function clearForm(){
+  ["date","title","attendees","incomeInput","firstExpense","secondExpense","otherExpense","memo"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("attendees").value=members.join(", ");
+  buildPaymentInputs();
+}
+
+function fillExample(){
+  document.getElementById("date").value="2026-07-27";
+  document.getElementById("title").value="7월 모임";
+  document.getElementById("attendees").value="박영만, 이재춘, 김병훈, 김효석, 한청희, 조한구, 홍인기";
+  members.forEach((name,i)=>{
+    const el=document.getElementById("pay_"+i);
+    if(el) el.value=["김동운","박영만","김병훈"].includes(name)?"transfer":
+             ["김효석","한청희","조한구","홍인기","이재춘"].includes(name)?"cash":"";
+  });
+  document.getElementById("incomeInput").value=0;
+  document.getElementById("firstExpense").value=187000;
+  document.getElementById("secondExpense").value=85000;
+  document.getElementById("otherExpense").value=0;
+  document.getElementById("memo").value="7월 정기 모임";
+  const w=document.getElementById("winner");
+  if(w && [...w.options].some(o=>o.value==="조한구")) w.value="조한구";
+}
+
+async function saveOpening(){
+  openingBalance=Number(document.getElementById("openingBalance").value||0);
+  if(useFirebase) await set(ref(db,"openingBalance"),openingBalance);
+  else localSave();
+  render();
+  alert("시작 잔고를 저장했습니다.");
+}
+
+function exportData(){
+  const data={meetings,members,openingBalance,exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="우리모임_회비백업.json";a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      meetings=d.meetings||[];openingBalance=Number(d.openingBalance||2030390);
+      if(useFirebase){
+        await set(ref(db,"meetings"),Object.fromEntries(meetings.map(m=>[m.id,m])));
+        await set(ref(db,"openingBalance"),openingBalance);
+      }else localSave();
+      alert("백업 데이터를 불러왔습니다.");
+    }catch(err){alert("백업파일을 읽을 수 없습니다.");}
+  };
+  reader.readAsText(file);
+}
+
+function loadLocal(){
+  meetings=JSON.parse(localStorage.getItem("meetingAppMeetings")||"[]");
+    openingBalance=Number(localStorage.getItem("meetingAppOpening")||2030390);
+  document.getElementById("openingBalance").value=openingBalance;
+  render();
+}
+
+async function initFirebase(){
+  const appMod=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const authMod=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const dbMod=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const app=appMod.initializeApp(firebaseConfig);
+  auth=authMod.getAuth(app);
+  signInAnonymously=authMod.signInAnonymously;
+  db=dbMod.getDatabase(app);
+  ref=dbMod.ref;set=dbMod.set;onValue=dbMod.onValue;push=dbMod.push;remove=dbMod.remove;
+  await signInAnonymously(auth);
+
+  document.getElementById("connection").className="ok";
+  document.getElementById("connection").textContent="✓ 공동 장부 연결 완료 · 회원들이 같은 주소에서 같은 데이터를 볼 수 있습니다.";
+  document.getElementById("status").textContent="Firebase 공동 장부 연결됨";
+
+  onValue(ref(db,"meetings"),snap=>{
+    const val=snap.val()||{};
+    meetings=Object.entries(val).map(([id,m])=>({...m,id}));
+    render();
+  });
+  onValue(ref(db,"openingBalance"),snap=>{
+    if(snap.exists()) openingBalance=Number(snap.val());
+    document.getElementById("openingBalance").value=openingBalance;
+    render();
+  });
+}
+
+buildPaymentInputs();
+if(useFirebase){
+  initFirebase().catch(err=>{
+    console.error(err);
+    useFirebase=false;
+    document.getElementById("connection").className="notice";
+    document.getElementById("connection").textContent="Firebase 연결에 실패했습니다. Firebase Authentication과 Realtime Database 설정을 확인해주세요.";
+    loadLocal();
+  });
+}else{
+  loadLocal();
+}
+</script>
+</body>
+</html>
